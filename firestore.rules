@@ -1,0 +1,28 @@
+rules_version = '2';
+
+// RepLog security rules — paste into Firebase console → Firestore Database → Rules → Publish.
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Each person's workouts, plans and body data: only they can read or write them.
+    match /data/users/{uid}/{doc} {
+      allow read, write: if request.auth != null && request.auth.uid == uid;
+    }
+
+    // Leaderboard: anyone signed in can read it; each person can only write or delete their own row.
+    match /board/{uid} {
+      allow read: if request.auth != null;
+      allow delete: if request.auth != null && request.auth.uid == uid;
+      allow create, update: if request.auth != null
+        && request.auth.uid == uid
+        && request.resource.data.keys().hasOnly(['v', 'nick', 'wk', 'mo', 'upd', 'streak', 'week', 'month', 'all', 'ex'])
+        && request.resource.data.nick is string
+        && request.resource.data.nick.size() <= 24;
+    }
+
+    // Everything else is closed.
+    match /{path=**} {
+      allow read, write: if false;
+    }
+  }
+}
